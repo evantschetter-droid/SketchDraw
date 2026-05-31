@@ -16,7 +16,7 @@ app.post('/api/convert', upload.single('image'), async (req, res) => {
     const timeout = setTimeout(() => controller.abort(), 60000);
 
     const response = await fetch(
-      'https://api-inference.huggingface.co/models/lllyasviel/control_v11p_sd15_lineart',
+      'https://router.huggingface.co/hf-inference/models/lllyasviel/control_v11p_sd15_lineart',
       {
         method: 'POST',
         headers: {
