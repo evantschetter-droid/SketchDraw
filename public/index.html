@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="SketchDraw">
+<title>SketchDraw</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0e0e0e;color:#f0ede6;font-family:'DM Mono',monospace;min-height:100vh;}
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap');
+.app{max-width:480px;margin:0 auto;padding-bottom:60px;}
+header{padding:20px 20px 16px;border-bottom:0.5px solid #2a2a2a;display:flex;align-items:center;justify-content:space-between;}
+.logo{font-family:'Instrument Serif',serif;font-size:24px;}
+.logo em{color:#c8b89a;font-style:italic;}
+.tagline{font-size:10px;color:#555;letter-spacing:1.5px;text-transform:uppercase;}
+main{padding:20px;}
+.upload-zone{border:1.5px dashed #383838;border-radius:10px;padding:44px 20px;text-align:center;cursor:pointer;background:#161616;transition:all 0.2s;margin-bottom:20px;}
+.upload-zone:hover,.upload-zone.drag{border-color:#c8b89a;background:#1c1a16;}
+.upload-zone .icon{font-size:36px;margin-bottom:12px;display:block;}
+.upload-zone p{font-size:13px;color:#888;line-height:1.7;}
+.upload-zone strong{color:#f0ede6;font-weight:500;}
+input[type=file]{display:none;}
+.workspace{display:none;}
+.preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+.panel-label{font-size:10px;color:#555;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;}
+.img-panel{background:#0a0a0a;border-radius:6px;border:0.5px solid #2a2a2a;overflow:hidden;min-height:180px;display:flex;align-items:center;justify-content:center;}
+.img-panel img{width:100%;height:auto;display:block;}
+.result-panel{background:#fff;border-radius:6px;border:0.5px solid #ddd;overflow:hidden;min-height:180px;display:flex;align-items:center;justify-content:center;}
+.result-panel img{width:100%;height:auto;display:block;}
+.result-placeholder{font-size:11px;color:#bbb;text-align:center;padding:16px;font-family:'DM Mono',monospace;line-height:1.6;}
+.loading-overlay{display:none;flex-direction:column;align-items:center;gap:10px;padding:20px;}
+.spinner{width:26px;height:26px;border:2px solid #eee;border-top-color:#555;border-radius:50%;animation:spin 0.75s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-overlay p{font-size:11px;color:#999;font-family:'DM Mono',monospace;}
+.style-section{margin-bottom:16px;}
+.style-label{font-size:10px;color:#555;letter-spacing:1.5px;text-transform:uppercase;display:block;margin-bottom:10px;}
+.pills{display:flex;flex-wrap:wrap;gap:7px;}
+.pill{font-size:11px;padding:6px 12px;border-radius:20px;border:0.5px solid #383838;background:#161616;color:#555;cursor:pointer;transition:all 0.15s;font-family:'DM Mono',monospace;user-select:none;}
+.pill:hover{border-color:#888;color:#888;}
+.pill.active{border-color:#c8b89a;color:#c8b89a;background:#1c1a16;}
+.convert-btn{width:100%;padding:14px;background:#c8b89a;color:#0e0e0e;border:none;border-radius:6px;font-family:'DM Mono',monospace;font-size:13px;font-weight:500;cursor:pointer;letter-spacing:0.5px;margin-bottom:10px;transition:opacity 0.15s;}
+.convert-btn:hover{opacity:0.88;}
+.convert-btn:disabled{opacity:0.35;cursor:not-allowed;}
+.action-row{display:flex;gap:8px;margin-bottom:20px;}
+.act-btn{flex:1;padding:10px;background:#161616;color:#888;border:0.5px solid #2a2a2a;border-radius:6px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.15s;}
+.act-btn:hover{color:#f0ede6;border-color:#383838;}
+.error-msg{display:none;background:#1a0e0e;border:0.5px solid #4a1a1a;border-radius:6px;padding:12px 14px;font-size:11px;color:#e07070;margin-bottom:14px;line-height:1.6;}
+.gallery-section{border-top:0.5px solid #2a2a2a;padding-top:20px;display:none;}
+.gallery-header{font-size:10px;color:#555;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px;}
+.gallery-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.gallery-card{background:#161616;border:0.5px solid #2a2a2a;border-radius:6px;overflow:hidden;}
+.card-imgs{display:grid;grid-template-columns:1fr 1fr;}
+.card-imgs img{width:100%;height:65px;object-fit:cover;display:block;}
+.card-imgs .sketch-side{background:#fff;}
+.card-foot{padding:7px 9px;display:flex;justify-content:space-between;align-items:center;}
+.card-foot span{font-size:10px;color:#555;}
+.card-foot button{font-size:10px;color:#555;background:none;border:none;cursor:pointer;font-family:'DM Mono',monospace;padding:0;}
+.card-foot button:hover{color:#e07070;}
+.empty-gallery{text-align:center;font-size:12px;color:#555;padding:20px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">Sketch<em>Draw</em></div>
+    <div class="tagline">Drawing reference</div>
+  </header>
+  <main>
+    <div class="upload-zone" id="uploadZone">
+      <span class="icon">📷</span>
+      <p><strong>Tap to choose a photo</strong><br>or drag and drop here<br>JPG · PNG · WEBP</p>
+      <input type="file" id="fileInput" accept="image/*">
+    </div>
+    <div class="workspace" id="workspace">
+      <div class="preview-grid">
+        <div>
+          <div class="panel-label">Original</div>
+          <div class="img-panel"><img id="origImg" alt="original"></div>
+        </div>
+        <div>
+          <div class="panel-label">Line art</div>
+          <div class="result-panel" id="resultPanel">
+            <div class="result-placeholder" id="resultPlaceholder">Choose a style and convert</div>
+            <div class="loading-overlay" id="loadingOverlay">
+              <div class="spinner"></div>
+              <p id="loadingMsg">Converting...</p>
+            </div>
+            <img id="resultImg" alt="line art" style="display:none;">
+          </div>
+        </div>
+      </div>
+      <div class="error-msg" id="errorMsg"></div>
+      <div class="style-section">
+        <span class="style-label">Style</span>
+        <div class="pills">
+          <div class="pill active">Pose reference</div>
+          <div class="pill">Coloring book</div>
+          <div class="pill">Manga / anime</div>
+          <div class="pill">Gesture</div>
+          <div class="pill">Portrait</div>
+        </div>
+      </div>
+      <button class="convert-btn" id="convertBtn">Convert to line art</button>
+      <div class="action-row">
+        <button class="act-btn" id="downloadBtn" style="display:none;">⬇ Download</button>
+        <button class="act-btn" id="printBtn" style="display:none;">🖨 Print</button>
+        <button class="act-btn" id="newBtn">↺ New image</button>
+      </div>
+    </div>
+    <div class="gallery-section" id="gallerySection">
+      <div class="gallery-header">Gallery</div>
+      <div class="gallery-grid" id="galleryGrid"></div>
+      <div class="empty-gallery" id="emptyGallery">Your converted images will appear here</div>
+    </div>
+  </main>
+</div>
+<script>
+const uploadZone=document.getElementById('uploadZone');
+const fileInput=document.getElementById('fileInput');
+const workspace=document.getElementById('workspace');
+const origImg=document.getElementById('origImg');
+const resultPlaceholder=document.getElementById('resultPlaceholder');
+const loadingOverlay=document.getElementById('loadingOverlay');
+const loadingMsg=document.getElementById('loadingMsg');
+const resultImg=document.getElementById('resultImg');
+const convertBtn=document.getElementById('convertBtn');
+const downloadBtn=document.getElementById('downloadBtn');
+const printBtn=document.getElementById('printBtn');
+const newBtn=document.getElementById('newBtn');
+const errorMsg=document.getElementById('errorMsg');
+const gallerySection=document.getElementById('gallerySection');
+const galleryGrid=document.getElementById('galleryGrid');
+const emptyGallery=document.getElementById('emptyGallery');
+let currentFile=null;
+let currentResultUrl=null;
+let gallery=[];
+try{gallery=JSON.parse(localStorage.getItem('sketchdraw_gallery')||'[]');}catch(e){}
+uploadZone.addEventListener('click',()=>fileInput.click());
+uploadZone.addEventListener('dragover',e=>{e.preventDefault();uploadZone.classList.add('drag');});
+uploadZone.addEventListener('dragleave',()=>uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop',e=>{e.preventDefault();uploadZone.classList.remove('drag');if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);});
+fileInput.addEventListener('change',()=>{if(fileInput.files[0])handleFile(fileInput.files[0]);});
+document.querySelectorAll('.pill').forEach(p=>{
+  p.addEventListener('click',()=>{document.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));p.classList.add('active');});
+});
+newBtn.addEventListener('click',()=>{
+  currentFile=null;currentResultUrl=null;
+  uploadZone.style.display='block';workspace.style.display='none';
+  resultImg.style.display='none';resultPlaceholder.style.display='block';
+  loadingOverlay.style.display='none';downloadBtn.style.display='none';
+  printBtn.style.display='none';errorMsg.style.display='none';fileInput.value='';
+});
+downloadBtn.addEventListener('click',()=>{
+  if(!currentResultUrl)return;
+  const a=document.createElement('a');a.href=currentResultUrl;a.download='lineart.png';a.click();
+});
+printBtn.addEventListener('click',()=>{
+  if(!currentResultUrl)return;
+  const win=window.open('');
+  win.document.write(`<html><body style="margin:0;"><img src="${currentResultUrl}" style="width:100%;"></body></html>`);
+  win.document.close();setTimeout(()=>{win.focus();win.print();},500);
+});
+function handleFile(file){
+  if(!file.type.startsWith('image/'))return;
+  currentFile=file;origImg.src=URL.createObjectURL(file);
+  uploadZone.style.display='none';workspace.style.display='block';
+  resultImg.style.display='none';resultPlaceholder.style.display='block';
+  loadingOverlay.style.display='none';downloadBtn.style.display='none';
+  printBtn.style.display='none';errorMsg.style.display='none';
+}
+const msgs=['Sending to AI...','Analyzing image...','Tracing outlines...','Cleaning up lines...','Almost done...'];
+convertBtn.addEventListener('click',async()=>{
+  if(!currentFile)return;
+  convertBtn.disabled=true;errorMsg.style.display='none';
+  resultPlaceholder.style.display='none';resultImg.style.display='none';
+  loadingOverlay.style.display='flex';downloadBtn.style.display='none';printBtn.style.display='none';
+  let idx=0;loadingMsg.textContent=msgs[0];
+  const interval=setInterval(()=>{idx=Math.min(idx+1,msgs.length-1);loadingMsg.textContent=msgs[idx];},3000);
+  try{
+    const formData=new FormData();
+    formData.append('image',currentFile);
+    const response=await fetch('/api/convert',{method:'POST',body:formData});
+    clearInterval(interval);
+    if(!response.ok){
+      const err=await response.json();
+      throw new Error(err.error||'Conversion failed');
+    }
+    const blob=await response.blob();
+    currentResultUrl=URL.createObjectURL(blob);
+    resultImg.src=currentResultUrl;resultImg.style.display='block';
+    loadingOverlay.style.display='none';downloadBtn.style.display='flex';printBtn.style.display='flex';
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const entry={id:Date.now(),orig:e.target.result,sketch:currentResultUrl,style:document.querySelector('.pill.active').textContent,date:new Date().toLocaleDateString()};
+      gallery.unshift(entry);
+      try{localStorage.setItem('sketchdraw_gallery',JSON.stringify(gallery.slice(0,30)));}catch(e2){}
+      renderGallery();
+    };
+    reader.readAsDataURL(currentFile);
+  }catch(err){
+    clearInterval(interval);
+    loadingOverlay.style.display='none';resultPlaceholder.style.display='block';
+    errorMsg.textContent=err.message;errorMsg.style.display='block';
+  }
+  convertBtn.disabled=false;
+});
+function renderGallery(){
+  gallerySection.style.display='block';
+  if(gallery.length===0){emptyGallery.style.display='block';galleryGrid.innerHTML='';return;}
+  emptyGallery.style.display='none';
+  galleryGrid.innerHTML=gallery.map(item=>`
+    <div class="gallery-card">
+      <div class="card-imgs">
+        <img src="${item.orig}" alt="original">
+        <img src="${item.sketch}" alt="sketch" class="sketch-side">
+      </div>
+      <div class="card-foot">
+        <span>${item.style} · ${item.date}</span>
+        <button onclick="deleteItem(${item.id})">delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+window.deleteItem=function(id){
+  gallery=gallery.filter(g=>g.id!==id);
+  try{localStorage.setItem('sketchdraw_gallery',JSON.stringify(gallery));}catch(e){}
+  renderGallery();
+};
+renderGallery();
+</script>
+</body>
+</html>
+EOF
+echo "done"
+Output
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="SketchDraw">
+<title>SketchDraw</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0e0e0e;color:#f0ede6;font-family:'DM Mono',monospace;min-height:100vh;}
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap');
+.app{max-width:480px;margin:0 auto;padding-bottom:60px;}
+header{padding:20px 20px 16px;border-bottom:0.5px solid #2a2a2a;display:flex;align-items:center;justify-content:space-between;}
+.logo{font-family:'Instrument Serif',serif;font-size:24px;}
+.logo em{color:#c8b89a;font-style:italic;}
+.tagline{font-size:10px;color:#555;letter-spacing:1.5px;text-transform:uppercase;}
+main{padding:20px;}
+.upload-zone{border:1.5px dashed #383838;border-radius:10px;padding:44px 20px;text-align:center;cursor:pointer;background:#161616;transition:all 0.2s;margin-bottom:20px;}
+.upload-zone:hover,.upload-zone.drag{border-color:#c8b89a;background:#1c1a16;}
+.upload-zone .icon{font-size:36px;margin-bottom:12px;display:block;}
+.upload-zone p{font-size:13px;color:#888;line-height:1.7;}
+.upload-zone strong{color:#f0ede6;font-weight:500;}
+input[type=file]{display:none;}
+.workspace{display:none;}
+.preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+.panel-label{font-size:10px;color:#555;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;}
+.img-panel{background:#0a0a0a;border-radius:6px;border:0.5px solid #2a2a2a;overflow:hidden;min-height:180px;display:flex;align-items:center;justify-content:center;}
+.img-panel img{width:100%;height:auto;display:block;}
+.result-panel{background:#fff;border-radius:6px;border:0.5px solid #ddd;overflow:hidden;min-height:180px;display:flex;align-items:center;justify-content:center;}
+.result-panel img{width:100%;height:auto;display:block;}
+.result-placeholder{font-size:11px;color:#bbb;text-align:center;padding:16px;font-family:'DM Mono',monospace;line-height:1.6;}
+.loading-overlay{display:none;flex-direction:column;align-items:center;gap:10px;padding:20px;}
+.spinner{width:26px;height:26px;border:2px solid #eee;border-top-color:#555;border-radius:50%;animation:spin 0.75s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-overlay p{font-size:11px;color:#999;font-family:'DM Mono',monospace;}
+.style-section{margin-bottom:16px;}
+.style-label{font-size:10px;color:#555;letter-spacing:1.5px;text-transform:uppercase;display:block;margin-bottom:10px;}
+.pills{display:flex;flex-wrap:wrap;gap:7px;}
+.pill{font-size:11px;padding:6px 12px;border-radius:20px;border:0.5px solid #383838;background:#161616;color:#555;cursor:pointer;transition:all 0.15s;font-family:'DM Mono',monospace;user-select:none;}
+.pill:hover{border-color:#888;color:#888;}
+.pill.active{border-color:#c8b89a;color:#c8b89a;background:#1c1a16;}
+.convert-btn{width:100%;padding:14px;background:#c8b89a;color:#0e0e0e;border:none;border-radius:6px;font-family:'DM Mono',monospace;font-size:13px;font-weight:500;cursor:pointer;letter-spacing:0.5px;margin-bottom:10px;transition:opacity 0.15s;}
+.convert-btn:hover{opacity:0.88;}
+.convert-btn:disabled{opacity:0.35;cursor:not-allowed;}
+.action-row{display:flex;gap:8px;margin-bottom:20px;}
+.act-btn{flex:1;padding:10px;background:#161616;color:#888;border:0.5px solid #2a2a2a;border-radius:6px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.15s;}
+.act-btn:hover{color:#f0ede6;border-color:#383838;}
+.error-msg{display:none;background:#1a0e0e;border:0.5px solid #4a1a1a;border-radius:6px;padding:12px 14px;font-size:11px;color:#e07070;margin-bottom:14px;line-height:1.6;}
+.gallery-section{border-top:0.5px solid #2a2a2a;padding-top:20px;display:none;}
+.gallery-header{font-size:10px;color:#555;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px;}
+.gallery-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.gallery-card{background:#161616;border:0.5px solid #2a2a2a;border-radius:6px;overflow:hidden;}
+.card-imgs{display:grid;grid-template-columns:1fr 1fr;}
+.card-imgs img{width:100%;height:65px;object-fit:cover;display:block;}
+.card-imgs .sketch-side{background:#fff;}
+.card-foot{padding:7px 9px;display:flex;justify-content:space-between;align-items:center;}
+.card-foot span{font-size:10px;color:#555;}
+.card-foot button{font-size:10px;color:#555;background:none;border:none;cursor:pointer;font-family:'DM Mono',monospace;padding:0;}
+.card-foot button:hover{color:#e07070;}
+.empty-gallery{text-align:center;font-size:12px;color:#555;padding:20px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">Sketch<em>Draw</em></div>
+    <div class="tagline">Drawing reference</div>
+  </header>
+  <main>
+    <div class="upload-zone" id="uploadZone">
+      <span class="icon">📷</span>
+      <p><strong>Tap to choose a photo</strong><br>or drag and drop here<br>JPG · PNG · WEBP</p>
+      <input type="file" id="fileInput" accept="image/*">
+    </div>
+    <div class="workspace" id="workspace">
+      <div class="preview-grid">
+        <div>
+          <div class="panel-label">Original</div>
+          <div class="img-panel"><img id="origImg" alt="original"></div>
+        </div>
+        <div>
+          <div class="panel-label">Line art</div>
+          <div class="result-panel" id="resultPanel">
+            <div class="result-placeholder" id="resultPlaceholder">Choose a style and convert</div>
+            <div class="loading-overlay" id="loadingOverlay">
+              <div class="spinner"></div>
+              <p id="loadingMsg">Converting...</p>
+            </div>
+            <img id="resultImg" alt="line art" style="display:none;">
+          </div>
+        </div>
+      </div>
+      <div class="error-msg" id="errorMsg"></div>
+      <div class="style-section">
+        <span class="style-label">Style</span>
+        <div class="pills">
+          <div class="pill active">Pose reference</div>
+          <div class="pill">Coloring book</div>
+          <div class="pill">Manga / anime</div>
+          <div class="pill">Gesture</div>
+          <div class="pill">Portrait</div>
+        </div>
+      </div>
+      <button class="convert-btn" id="convertBtn">Convert to line art</button>
+      <div class="action-row">
+        <button class="act-btn" id="downloadBtn" style="display:none;">⬇ Download</button>
+        <button class="act-btn" id="printBtn" style="display:none;">🖨 Print</button>
+        <button class="act-btn" id="newBtn">↺ New image</button>
+      </div>
+    </div>
+    <div class="gallery-section" id="gallerySection">
+      <div class="gallery-header">Gallery</div>
+      <div class="gallery-grid" id="galleryGrid"></div>
+      <div class="empty-gallery" id="emptyGallery">Your converted images will appear here</div>
+    </div>
+  </main>
+</div>
+<script>
+const uploadZone=document.getElementById('uploadZone');
+const fileInput=document.getElementById('fileInput');
+const workspace=document.getElementById('workspace');
+const origImg=document.getElementById('origImg');
+const resultPlaceholder=document.getElementById('resultPlaceholder');
+const loadingOverlay=document.getElementById('loadingOverlay');
+const loadingMsg=document.getElementById('loadingMsg');
+const resultImg=document.getElementById('resultImg');
+const convertBtn=document.getElementById('convertBtn');
+const downloadBtn=document.getElementById('downloadBtn');
+const printBtn=document.getElementById('printBtn');
+const newBtn=document.getElementById('newBtn');
+const errorMsg=document.getElementById('errorMsg');
+const gallerySection=document.getElementById('gallerySection');
+const galleryGrid=document.getElementById('galleryGrid');
+const emptyGallery=document.getElementById('emptyGallery');
+let currentFile=null;
+let currentResultUrl=null;
+let gallery=[];
+try{gallery=JSON.parse(localStorage.getItem('sketchdraw_gallery')||'[]');}catch(e){}
+uploadZone.addEventListener('click',()=>fileInput.click());
+uploadZone.addEventListener('dragover',e=>{e.preventDefault();uploadZone.classList.add('drag');});
+uploadZone.addEventListener('dragleave',()=>uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop',e=>{e.preventDefault();uploadZone.classList.remove('drag');if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);});
+fileInput.addEventListener('change',()=>{if(fileInput.files[0])handleFile(fileInput.files[0]);});
+document.querySelectorAll('.pill').forEach(p=>{
+  p.addEventListener('click',()=>{document.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));p.classList.add('active');});
+});
+newBtn.addEventListener('click',()=>{
+  currentFile=null;currentResultUrl=null;
+  uploadZone.style.display='block';workspace.style.display='none';
+  resultImg.style.display='none';resultPlaceholder.style.display='block';
+  loadingOverlay.style.display='none';downloadBtn.style.display='none';
+  printBtn.style.display='none';errorMsg.style.display='none';fileInput.value='';
+});
+downloadBtn.addEventListener('click',()=>{
+  if(!currentResultUrl)return;
+  const a=document.createElement('a');a.href=currentResultUrl;a.download='lineart.png';a.click();
+});
+printBtn.addEventListener('click',()=>{
+  if(!currentResultUrl)return;
+  const win=window.open('');
+  win.document.write(`<html><body style="margin:0;"><img src="${currentResultUrl}" style="width:100%;"></body></html>`);
+  win.document.close();setTimeout(()=>{win.focus();win.print();},500);
+});
+function handleFile(file){
+  if(!file.type.startsWith('image/'))return;
+  currentFile=file;origImg.src=URL.createObjectURL(file);
+  uploadZone.style.display='none';workspace.style.display='block';
+  resultImg.style.display='none';resultPlaceholder.style.display='block';
+  loadingOverlay.style.display='none';downloadBtn.style.display='none';
+  printBtn.style.display='none';errorMsg.style.display='none';
+}
+const msgs=['Sending to AI...','Analyzing image...','Tracing outlines...','Cleaning up lines...','Almost done...'];
+convertBtn.addEventListener('click',async()=>{
+  if(!currentFile)return;
+  convertBtn.disabled=true;errorMsg.style.display='none';
+  resultPlaceholder.style.display='none';resultImg.style.display='none';
+  loadingOverlay.style.display='flex';downloadBtn.style.display='none';printBtn.style.display='none';
+  let idx=0;loadingMsg.textContent=msgs[0];
+  const interval=setInterval(()=>{idx=Math.min(idx+1,msgs.length-1);loadingMsg.textContent=msgs[idx];},3000);
+  try{
+    const formData=new FormData();
+    formData.append('image',currentFile);
+    const response=await fetch('/api/convert',{method:'POST',body:formData});
+    clearInterval(interval);
+    if(!response.ok){
+      const err=await response.json();
+      throw new Error(err.error||'Conversion failed');
+    }
+    const blob=await response.blob();
+    currentResultUrl=URL.createObjectURL(blob);
+    resultImg.src=currentResultUrl;resultImg.style.display='block';
+    loadingOverlay.style.display='none';downloadBtn.style.display='flex';printBtn.style.display='flex';
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const entry={id:Date.now(),orig:e.target.result,sketch:currentResultUrl,style:document.querySelector('.pill.active').textContent,date:new Date().toLocaleDateString()};
+      gallery.unshift(entry);
+      try{localStorage.setItem('sketchdraw_gallery',JSON.stringify(gallery.slice(0,30)));}catch(e2){}
+      renderGallery();
+    };
+    reader.readAsDataURL(currentFile);
+  }catch(err){
+    clearInterval(interval);
+    loadingOverlay.style.display='none';resultPlaceholder.style.display='block';
+    errorMsg.textContent=err.message;errorMsg.style.display='block';
+  }
+  convertBtn.disabled=false;
+});
+function renderGallery(){
+  gallerySection.style.display='block';
+  if(gallery.length===0){emptyGallery.style.display='block';galleryGrid.innerHTML='';return;}
+  emptyGallery.style.display='none';
+  galleryGrid.innerHTML=gallery.map(item=>`
+    <div class="gallery-card">
+      <div class="card-imgs">
+        <img src="${item.orig}" alt="original">
+        <img src="${item.sketch}" alt="sketch" class="sketch-side">
+      </div>
+      <div class="card-foot">
+        <span>${item.style} · ${item.date}</span>
+        <button onclick="deleteItem(${item.id})">delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+window.deleteItem=function(id){
+  gallery=gallery.filter(g=>g.id!==id);
+  try{localStorage.setItem('sketchdraw_gallery',JSON.stringify(gallery));}catch(e){}
+  renderGallery();
+};
+renderGallery();
+</script>
+</body>
+</html>
