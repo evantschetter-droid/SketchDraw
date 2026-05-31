@@ -23,7 +23,7 @@ app.post('/api/convert', upload.single('image'), async (req, res) => {
 
     console.log('Calling Hugging Face...');
     const response = await fetch(
-      'https://router.huggingface.co/hf-inference/models/lllyasviel/control_v11p_sd15_lineart',
+     'https://api-inference.huggingface.co/models/lllyasviel/sd-controlnet-canny',
       {
         method: 'POST',
         headers: {
