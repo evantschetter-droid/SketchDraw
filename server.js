@@ -5,7 +5,7 @@ const fetch = require('node-fetch');
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 
-const HF_TOKEN = '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';
+const HF_TOKEN = process.env.HF_TOKEN;
 
 app.use(express.static('public'));
 
